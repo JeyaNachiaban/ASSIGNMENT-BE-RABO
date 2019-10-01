@@ -8,7 +8,7 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Service;
 
 import com.rabo.constants.RaboConstants;
-import com.rabo.controller.RaboException;
+import com.rabo.exception.RaboException;
 import com.rabo.dto.TransRecords;
 import com.rabo.service.TransValidationService;
 

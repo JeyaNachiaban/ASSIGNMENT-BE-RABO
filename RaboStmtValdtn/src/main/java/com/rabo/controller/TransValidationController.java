@@ -32,6 +32,7 @@ import org.xml.sax.SAXException;
 
 import com.rabo.constants.RaboConstants;
 import com.rabo.dto.TransRecords;
+import com.rabo.exception.RaboException;
 import com.rabo.service.TransValidationService;
 
 import org.apache.logging.log4j.LogManager;
