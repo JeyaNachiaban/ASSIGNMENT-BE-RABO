@@ -118,5 +118,18 @@ public class TransRecords implements Serializable {
 	public void setValidStatus(String validStatus) {
 		this.validStatus = validStatus;
 	}
+	public TransRecords(Integer referenceNo, String acountNumber, String description, BigDecimal startBalance,
+			BigDecimal mutation, BigDecimal endBalance, String validStatus) {
+		super();
+		this.referenceNo = referenceNo;
+		this.acountNumber = acountNumber;
+		this.description = description;
+		this.startBalance = startBalance;
+		this.mutation = mutation;
+		this.endBalance = endBalance;
+		this.validStatus = validStatus;
+	}
 
+	public TransRecords() {
+	}
 }

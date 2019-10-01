@@ -17,7 +17,10 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.commons.io.FilenameUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -29,6 +32,8 @@ import org.xml.sax.SAXException;
 
 import com.rabo.constants.RaboConstants;
 import com.rabo.dto.TransRecords;
+import com.rabo.service.TransValidationService;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -37,8 +42,12 @@ import org.apache.logging.log4j.Logger;
  *
  */
 @RestController
+@RequestMapping("/rabo/transreport")
 public class TransValidationController {
 
+	@Autowired
+	TransValidationService transValidationService;
+	
 	@Value("${report.file.path}")
 	private String reportFilePath;
 
@@ -47,34 +56,30 @@ public class TransValidationController {
 	/*
 	 * This method is to validate the list of transactions
 	 */
-	@RequestMapping("/validateTransReport")
+	@GetMapping("/validate")
 	@ResponseBody
-	private String validateTransReport() {
+	private ResponseEntity<String> validateTransReport() {
 		List<TransRecords> recordList = null;
 		List<TransRecords> duplicateEntries = null;
 		List<TransRecords> inValidEntries = null;
 		String failureRecords = null;
 		try {
 			recordList = processInputFile();
-			duplicateEntries = recordList.stream().collect(Collectors.groupingBy(TransRecords::getReferenceNo))
-					.entrySet().stream().filter(e -> e.getValue().size() > 1).flatMap(e -> e.getValue().stream())
-					.collect(Collectors.toList());
-			inValidEntries = recordList.stream().filter(e -> e.getValidStatus().equals(RaboConstants.INVALID))
-					.collect(Collectors.toList());
+			duplicateEntries = transValidationService.findDuplicates(recordList);
+			inValidEntries = transValidationService.findInvalidEntries(recordList);
 			failureRecords = getOutputRecords(duplicateEntries, inValidEntries);
-		} catch (Exception e) {
+		} catch (RaboException e) {
 			log.error("Exception in validateTransReport", e);
-			failureRecords = "<Center><H3>RABO BANK</H3></Center> <BR>Error Occured in fileProcessing";
+			throw new RaboException();
 		}
-
-		return failureRecords;
+		return ResponseEntity.ok().body(failureRecords);
 	}
 
 	/*
 	 * This method is to process the input file and get the list of transactions
 	 * based on file type
 	 */
-	private List<TransRecords> processInputFile() throws Exception {
+	private List<TransRecords> processInputFile() throws RaboException {
 		String fileType = null;
 		List<TransRecords> transRecordsList = null;
 		try {
@@ -84,9 +89,9 @@ public class TransValidationController {
 			} else if (RaboConstants.XML_TYPE.equalsIgnoreCase(fileType)) {
 				transRecordsList = processXMLFile(reportFilePath);
 			}
-		} catch (Exception e) {
+		} catch (RaboException e) {
 			log.error("Exception in processInputFile", e);
-			throw e;
+			throw new RaboException();
 		}
 		return transRecordsList;
 	}
@@ -100,9 +105,9 @@ public class TransValidationController {
 			if (filePath != null) {
 				extension = FilenameUtils.getExtension(filePath);
 			}
-		} catch (Exception e) {
+		} catch (RaboException e) {
 			log.error("Exception in getFileType", e);
-			throw e;
+						throw new RaboException();
 		}
 		return extension;
 	}
@@ -111,7 +116,7 @@ public class TransValidationController {
 	 * This method is to process the get the process the transactions from CSV
 	 * File
 	 */
-	private List<TransRecords> processCsvFile(String filePath) throws Exception {
+	private List<TransRecords> processCsvFile(String filePath) throws RaboException {
 		List<TransRecords> inputList = new ArrayList<TransRecords>();
 		InputStream inputFS = null;
 		BufferedReader br = null;
@@ -122,7 +127,7 @@ public class TransValidationController {
 			inputList = br.lines().skip(1).map(mapToItem).collect(Collectors.toList());
 		} catch (Exception e) {
 			log.error("Exception in processCsvFile", e);
-			throw e;
+						throw new RaboException();
 		} finally {
 			try {
 				inputFS.close();
@@ -170,7 +175,7 @@ public class TransValidationController {
 	/*
 	 * This method is to process the XML file to get the list of transactions
 	 */
-	private List<TransRecords> processXMLFile(String filePath) throws Exception {
+	private List<TransRecords> processXMLFile(String filePath) throws RaboException {
 		List<TransRecords> transRecordsList = new ArrayList<TransRecords>();
 		TransRecords transRecord = null;
 		try {
@@ -220,7 +225,7 @@ public class TransValidationController {
 			}
 		} catch (IOException | ParserConfigurationException | SAXException e) {
 			log.error("Exception in processXMLFile", e);
-			throw e;
+			throw new RaboException();
 		}
 		return transRecordsList;
 	}
@@ -251,9 +256,9 @@ public class TransValidationController {
 				failureRecords.append(x.getDescription());
 				failureRecords.append("<BR>");
 			});
-		} catch (Exception e) {
+		} catch (RaboException e) {
 			log.error("Exception in getOutputRecords", e);
-			throw e;
+			throw new RaboException();
 		}
 		return null != failureRecords ? failureRecords.toString() : null;
 	}
